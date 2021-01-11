@@ -24,6 +24,7 @@ Fixing "AttributeError: 'RandomActivation' object has no attribute 'step_day'"
 1. Go to LivModel.py --> _init_() function --> line "self.schedule = RandomActivation(self)
 2. Strg + Click on "RandomActivation" --> opens time.py
 3. Add the following functions to RandomActivation class
+
 		def step_day(self) -> None:
 		        """ Executes the step of all agents, one at a time, in
 		        random order.
@@ -61,20 +62,20 @@ Fixing "TypeError: __init__() missing 1 required positional argument: 'model' "
 2. Strg + Click on "Agent" --> opens agent.py
 3. Change the following function in Agent class
 
-From: 
-# =============================================================================
-#     def __init__(self, unique_id: int, model: Model) -> None:
-#         """ Create a new agent. """
-#         self.unique_id = unique_id
-#         self.model = model
-# =============================================================================
+		From: 
+		# =============================================================================
+		#     def __init__(self, unique_id: int, model: Model) -> None:
+		#         """ Create a new agent. """
+		#         self.unique_id = unique_id
+		#         self.model = model
+		# =============================================================================
 
-To:         
-    def __init__(self, unique_id: int, pos:(int,int) , model: Model) -> None:
-        """ Create a new agent. """
-        self.unique_id = unique_id
-        self.model = model
-        self.pos = pos
+		To:         
+		    def __init__(self, unique_id: int, pos:(int,int) , model: Model) -> None:
+			""" Create a new agent. """
+			self.unique_id = unique_id
+			self.model = model
+			self.pos = pos
 
 Alternative: only add the pos:(int,int) to the __init__ and as attribute to the function.
 
