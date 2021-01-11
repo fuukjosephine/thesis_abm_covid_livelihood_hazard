@@ -9,8 +9,7 @@ import numpy as np
 
 class LocalGovt(Agent):
     def __init__(self, unique_id,pos, model, livelihood_threshold, growth_threshold, 
-                 lockdown_level, corona_threshold, list_of_agents,
-                 list_households):
+                 lockdown_level, corona_threshold, list_of_agents, list_households):
         super().__init__(unique_id, pos, model)
         self.list_of_agents = list_of_agents
         self.model = model
@@ -19,29 +18,27 @@ class LocalGovt(Agent):
         self.cases_threshold = 0
         self.growth_threshold = growth_threshold
         self.list_households = list_households
-        self.lockdown_level = [0, 1, 2] # 0=no lockdown, 1=med lockdown, 2=severe lockdown
-        self.warning = np.random.choice([True, False], p=[0.5,0.5]) #figure out what the distribution is
+        self.lockdown_level = [0, 1, 2] # 0=no lockdown, 1=medium lockdown, 2=severe lockdown
+        self.warning = np.random.choice([True, False], p=[0.5,0.5]) #half the time there is an early warning
         self.avg_livelihood = self.calculate_livelihood()
-        self.total_corona = 0 # to do = government
+        self.total_corona = 0 
         self.avg_contacts = 0
         self.cases = 0
         self.lockdown_time = 0
         
     #lockdown levels: 0=no lockdown, 1=moderate lockdown, 2=severe lockdown
-    def impose_restrictions(self):                      #random guess: 10 percent growth is bad
-        #print(self.total_corona)
-        #print(self.total_corona[0], self.total_corona[1])
+    def impose_restrictions(self):
         if self.lockdown_time <= 0: 
             if self.avg_livelihood < self.livelihood_threshold and self.corona_threshold == False:
-                self.lockdown_level = 0 #0 #corona good, livelihood not, so all can go to market
+                self.lockdown_level = 0 #corona good, livelihood not, so all can go to market
             elif self.corona_threshold == True and self.avg_livelihood < self.livelihood_threshold:
-                self.lockdown_level = 1 #1 #corona not good, livelihood also not, but people need to go out
+                self.lockdown_level = 1 #corona not good, livelihood also not, but people need to go out
                 self.lockdown_time = 14
             elif self.corona_threshold == True and self.avg_livelihood >= self.livelihood_threshold: #corona not good, livelihood good, so lockdown everything!
-                self.lockdown_level = 2 #2
+                self.lockdown_level = 2
                 self.lockdown_time = 14
             elif self.corona_threshold == False and self.avg_livelihood >= self.livelihood_threshold: #corona good, livelihood is not
-                self.lockdown_level = 0 #0
+                self.lockdown_level = 0
             else:
                 print("this should not be possible")
             
@@ -92,7 +89,7 @@ class LocalGovt(Agent):
     def calculate_corona(self):
         corona_cases = 0
         for agent in self.model.list_of_agents:
-            if agent.INF == 1: # or agent.EXP == 1:
+            if agent.INF == 1:
                 corona_cases += 1
         factor_increase = self.get_change(corona_cases, self.cases)
         #print("factor increase: ", factor_increase, "corona_cases: ", corona_cases)
@@ -116,18 +113,14 @@ class LocalGovt(Agent):
     
     def cash_transfer(self):
         for household in self.model.list_households:
-            #print("get occ: ", household.get_occupants())
-            #print("agents: ", len(household.agents))
             #if the livelihood is less than what is necessary for consumption
             if (household.livelihood / len(household.agents)) < 1 and household.cash != 1: 
                 #give aid for one week
                 household.livelihood += len(household.agents) * self.model.height_cash
                 household.cash = 1
     
- 
     def step(self):
         self.total_corona = self.calculate_corona()
-        #print("total number of corona cases today is: ", self.total_corona)
         self.avg_livelihood = self.calculate_livelihood()
         
         #in case of different prioritization use below instead of impose_restrictions

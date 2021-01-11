@@ -8,7 +8,6 @@ Created on Tue Jul 21 11:09:05 2020
 from mesa import Agent
 import random
 import numpy as np
-import math
 
 class LivAgent(Agent):
     def __init__(self, unique_id, pos, model, market_pos, max_farm_liv_closed,
@@ -23,14 +22,24 @@ class LivAgent(Agent):
         self.INF = 0
         self.REC = 0  
         
-        self.Ih = 0 #infected encoutered at home/shelter
-        self.Sh = 0 #susceptible encoutered at home/shelter
-        self.Rh = 0 #recovered encoutered at home/shelter
-        self.Eh = 0 #exposed encountered at home/shelter
+        self.Ihh = 0 #infected encoutered at home
+        self.Shh = 0 #susceptible encoutered at home
+        self.Rhh = 0 #recovered encoutered at home
+        self.Ehh = 0 #exposed encountered at home
+        
+        self.Ish = 0 #infected encoutered at shelter
+        self.Ssh = 0 #susceptible encoutered at shelter
+        self.Rsh = 0 #recovered encoutered at shelter
+        self.Esh = 0 #exposed encountered at shelter
+        
         self.Im = 0 #infected encoutered at market
         self.Sm = 0 #susceptible encoutered at market
         self.Rm = 0 #recovered encoutered at market
         self.Em = 0 #exposed encoutered at market
+        
+        self.cor_loc_market = False
+        self.cor_loc_shelter = False
+        self.cor_loc_household = False
         
         self.corona = 0 
         self.exposure = 1 #exposure measured in people met during 1 day
@@ -87,9 +96,6 @@ class LivAgent(Agent):
         self.address = address     
 
     def go_to_market(self):
-        #exposure goes up based on number of people at market, times their exposure
-        #go to market if not too old & if livelihood is not covered for at least 3 days
-        #cannot go to market if in shelter
         if self.model.g.lockdown_level == 2:
             if self.facemask == 0 and self.model.my_market.open == True and self.get_address().get_livelihood() < (self.get_address().get_size() * 2):
                 self.buy_facemask()
@@ -118,9 +124,7 @@ class LivAgent(Agent):
         #(2) they are not in quarantine and they have already spent 5 days in the shelter
         if (self.quarantine_time == 0 and (self.affected == 0 or self.affected == 3) and self.quarantine == 0) or \
             (self.quarantine_time == 0 and self.shelter_time == self.model.shelter_time and self.quarantine == 0):
-            #print("my loc still market right??: ", self.pos, "xoxo", self.unique_id)
             self.model.grid.move_agent(self, self.home)
-            #print("and now home: ", self.pos, "xoxo", self.unique_id)
       
     def reset_contacts(self):
         self.contact_list = []
@@ -136,31 +140,23 @@ class LivAgent(Agent):
         #visitors are not allowed, not that much extra livelihood
         if self.model.my_market.visitors == False:
             if self.occupation == 1 and self.get_address().get_livelihood() < self.model.g.livelihood_threshold:
-                self.get_address().increase_livelihood(self.max_farm_liv_closed) #farmers get 5 livelihood if below threshold
-                #print("livelihood went up by agent: ", self.unique_id)
+                self.get_address().increase_livelihood(self.max_farm_liv_closed)
             elif self.occupation == 1:
-                self.get_address().increase_livelihood(self.min_farm_liv_closed) #otherwise just 3
-                #print("livelihood went up by agent: ", self.unique_id)
+                self.get_address().increase_livelihood(self.min_farm_liv_closed)
             elif self.occupation != 1 and self.get_address().get_livelihood() < self.model.g.livelihood_threshold:
-                self.get_address().increase_livelihood(self.max_cit_liv_closed) #get 3 livelhood if below threshold
-                #print("livelihood went up by agent: ", self.unique_id)
+                self.get_address().increase_livelihood(self.max_cit_liv_closed)
             else:
-                self.get_address().increase_livelihood(self.min_cit_liv_closed) #otherwise just 1
-                #print("livelihood went up by agent: ", self.unique_id)
+                self.get_address().increase_livelihood(self.min_cit_liv_closed)
         #visitors are allowed, so more livelihood        
         else:
             if self.occupation == 1 and self.get_address().get_livelihood() < self.model.g.livelihood_threshold:
-                self.get_address().increase_livelihood(self.max_farm_liv_open) #farmers get 10 livelihood if below threshold
-                #print("livelihood went up by agent: ", self.unique_id)
+                self.get_address().increase_livelihood(self.max_farm_liv_open)
             elif self.occupation == 1:
-                self.get_address().increase_livelihood(self.min_farm_liv_open) #otherwise just 6
-                #print("livelihood went up by agent: ", self.unique_id)
+                self.get_address().increase_livelihood(self.min_farm_liv_open)
             elif self.occupation != 1 and self.get_address().get_livelihood() < self.model.g.livelihood_threshold:
-                self.get_address().increase_livelihood(self.max_cit_liv_open) #get 6 livelhood if below threshold
-                #print("livelihood went up by agent: ", self.unique_id)
+                self.get_address().increase_livelihood(self.max_cit_liv_open)
             else:
-                self.get_address().increase_livelihood(self.min_cit_liv_open) #otherwise just 2
-                #print("livelihood went up by agent: ", self.unique_id)
+                self.get_address().increase_livelihood(self.min_cit_liv_open)
         
     def set_occupation(self, occupation):
         self.occupation = occupation
@@ -172,45 +168,19 @@ class LivAgent(Agent):
         cellmates = self.model.grid.get_cell_list_contents([self.market_pos])
         if len(cellmates) >= self.model.my_market.cap:
             self.model.my_market.open = False
-            #print("market is closed now")
         else:
             "still open for now"
     
     def to_quarantine(self):
-        #print(self.testing, self.INF, self.quarantine)
         if self.testing == 1 and self.INF == 1 and self.quarantine == 1:
-            #print("joe")
-# =============================================================================
-#             my_hospital = self.model.list_hospitals[0]
-#             my_dist = 1000000
-#             for hospital in self.model.list_hospitals:
-#                 new_dist = self.model.calculate_distance(self.pos, hospital.pos)
-#                 if new_dist < my_dist and hospital.cap != 0:
-#                     my_dist = new_dist
-#                     my_hospital = hospital
-#             self.model.grid.move_agent(self, my_hospital.pos)
-# =============================================================================
             self.quarantine_time = self.isolation_duration
             self.quarantine = 1
-            
-            
             ########ROOMMATES NEED TO QUARANTINE##############
-            #print("uhhh")
             roomies = self.get_address().get_occupants()
-            
-            
             for roomie in roomies:
                 roomie.quarantine = np.random.choice(np.arange(0,2), p=[1-roomie.awareness, roomie.awareness])
                 if roomie.quarantine == 1:
                     roomie.quarantine_time = 14
-                    #print("whatuup")
-# =============================================================================
-#             for roomie in roomies:
-#                 #stay at home --> testing = 1
-#                 roomie.testing = 1
-#                 roomie.quarantine = 1
-# =============================================================================
-            #self.get_address().increase_livelihood(1)
         else:
             pass
     
@@ -219,29 +189,21 @@ class LivAgent(Agent):
             self.model.grid.move_agent(self, shelter.pos)
             shelter.add_occupant(self)
             self.affected = 1
-            #print("about to enter shelter")
             self.in_shelter = 1
     
     def random_shelter(self):
         my_shelter = self.model.list_shelters[0]
-        my_dist = 10000 #np.inf
-        
-        for shelter in self.model.list_shelters:
-            
-            if shelter.full == False:
-                
-                if self.model.calculate_distance(self.pos,shelter.pos) < my_dist:
-                    
+        my_dist = 10000 #np.inf        
+        for shelter in self.model.list_shelters:           
+            if shelter.full == False:              
+                if self.model.calculate_distance(self.pos,shelter.pos) < my_dist:                   
                     my_dist = self.model.calculate_distance(self.pos,shelter.pos)
-                    my_shelter = shelter
-                    
+                    my_shelter = shelter            
         if my_dist != 10000:     
             self.model.grid.move_agent(self, my_shelter.pos)
             my_shelter.add_occupant(self)
             self.in_shelter = 1
-            #print("entered shelter, ", self.unique_id)
         else:
-            #print("I cannot enter shelter", self.unique_id)
             self.in_shelter = 0
             self.affected = 2
         
@@ -277,7 +239,6 @@ class LivAgent(Agent):
         self.contacts_market = len(self.contact_list)
         self.contacts += len(self.contact_list)
         self.contact_list = []
-        #print(self.Sm, self.Im, self.Rm, self.Em)
      
     def set_Sm(self, Sm):
         self.Sm = Sm
@@ -291,76 +252,95 @@ class LivAgent(Agent):
     def set_Em(self, Em):
         self.Em = Em
         
-    def store_night_contacts(self):
-        Sh = len([cellmate for cellmate in self.contact_list if cellmate.SUS == 1])
-        Ih = len([cellmate for cellmate in self.contact_list if cellmate.INF == 1])
-        Rh = len([cellmate for cellmate in self.contact_list if cellmate.REC == 1])
-        Eh = len([cellmate for cellmate in self.contact_list if cellmate.EXP == 1])
-        self.set_Sh(Sh)
-        self.set_Ih(Ih)
-        self.set_Rh(Rh)
-        self.set_Eh(Eh)
+    def store_hh_night_contacts(self):
+        Shh = len([cellmate for cellmate in self.contact_list if cellmate.SUS == 1])
+        Ihh = len([cellmate for cellmate in self.contact_list if cellmate.INF == 1])
+        Rhh = len([cellmate for cellmate in self.contact_list if cellmate.REC == 1])
+        Ehh = len([cellmate for cellmate in self.contact_list if cellmate.EXP == 1])
+        self.set_Shh(Shh)
+        self.set_Ihh(Ihh)
+        self.set_Rhh(Rhh)
+        self.set_Ehh(Ehh)
         self.contacts_night = len(self.contact_list)
         self.contacts += len(self.contact_list)
         self.contact_list = []
         if self.SUS == 1:
             self.get_corona()
             
+    def set_Shh(self, Sh):
+        self.Shh = Sh
         
-    def set_Sh(self, Sh):
-        self.Sh = Sh
+    def set_Ihh(self, Ih):
+        self.Ihh = Ih
         
-    def set_Ih(self, Ih):
-        self.Ih = Ih
+    def set_Rhh(self, Rh):
+        self.Rhh = Rh
         
-    def set_Rh(self, Rh):
-        self.Rh = Rh
+    def set_Ehh(self, Eh):
+        self.Ehh = Eh
+            
+    def store_sh_night_contacts(self):
+        Ssh = len([cellmate for cellmate in self.contact_list if cellmate.SUS == 1])
+        Ish = len([cellmate for cellmate in self.contact_list if cellmate.INF == 1])
+        Rsh = len([cellmate for cellmate in self.contact_list if cellmate.REC == 1])
+        Esh = len([cellmate for cellmate in self.contact_list if cellmate.EXP == 1])
+        self.set_Ssh(Ssh)
+        self.set_Ish(Ish)
+        self.set_Rsh(Rsh)
+        self.set_Esh(Esh)
+        self.contacts_night = len(self.contact_list)
+        self.contacts += len(self.contact_list)
+        self.contact_list = []
+        if self.SUS == 1:
+            self.get_corona()         
         
-    def set_Eh(self, Eh):
-        self.Eh = Eh
+    def set_Ssh(self, Sh):
+        self.Ssh = Sh
+        
+    def set_Ish(self, Ih):
+        self.Ish = Ih
+        
+    def set_Rsh(self, Rh):
+        self.Rsh = Rh
+        
+    def set_Esh(self, Eh):
+        self.Esh = Eh
         
     def get_corona(self):
         Nm = self.Im + self.Sm + self.Rm + self.Em
-        Nh = self.Ih + self.Sh + self.Rh + self.Eh
-        
-        #print("infected close? " , self.Im, self.Ih)
+        Nhh = self.Ihh + self.Shh + self.Rhh + self.Ehh
+        Nsh = self.Ish + self.Ssh + self.Rsh + self.Esh
         if Nm > 0 and self.corona != 1:
             dSdt_market = (self.contacts_market * self.model.ptrans * (self.Im + self.Em) * self.Sm) / Nm
             prob_market = dSdt_market / Nm
             if prob_market > 1:
                 prob_market = 1
-            #print(self.contacts_market)
-            #print("contacts:", self.contacts_market, "ptrans", self.model.ptrans, "Im", self.Im, "Sm", self.Sm, "Em", self.Em, "Nm", Nm, "probab:", prob_market)
             self.corona = np.random.choice(np.arange(0,2), p=[1-prob_market, prob_market])
-            #print("probmarket: ", prob_market, "corona? ", self.corona, "age?", self.age,
-                  #" number of contacts: ", self.contacts)
-            #print("my market prob was: ", prob_market) 
+            if self.corona == 1:
+                self.cor_loc_market = True
         elif Nm == 0:
             pass
-            #print('wtf')
-        if Nh > 0 and self.corona != 1:
-            dSdt_night = (self.contacts_night * self.model.ptrans * (self.Ih + self.Eh) * self.Sh) / Nh
-            prob_night= dSdt_night / Nh
-# =============================================================================
-#             if self.contacts_night > 50: 
-#                 print("pos", self.pos, "contacts", self.contacts_night, "prob", prob_night, "ih", self.Ih)
-#             print(self.contacts_night)
-# =============================================================================
+        if Nhh > 0 and self.corona != 1:
+            dSdt_night = (self.contacts_night * self.model.ptrans * (self.Ihh + self.Ehh) * self.Shh) / Nhh
+            prob_night= dSdt_night / Nhh
             if prob_night > 1:
                 prob_night = 1
-            #print("contacts:", self.contacts_night, "ptrans", self.model.ptrans, "Ih", self.Ih, "Sh", self.Sh, "Nm", Nh, "probab:", prob_night)
-            self.corona = np.random.choice(np.arange(0,2), p=[1-prob_night, prob_night])
-            
-            
-            #print("whereas my night prob was: ", prob_night)
-            
-           # print("probnight was: ", prob_night, " corona?: ", self.corona,
-                  #"number of housemates: ", self.contacts)
+            self.corona = np.random.choice(np.arange(0,2), p=[1-prob_night, prob_night]) 
+            if self.corona == 1:
+                self.cor_loc_household = True
+        if Nsh > 0 and self.corona != 1:
+            dSdt_night = (self.contacts_night * self.model.ptrans * (self.Ish + self.Esh) * self.Ssh) / Nsh
+            prob_night= dSdt_night / Nsh
+            if prob_night > 1:
+                prob_night = 1
+            self.corona = np.random.choice(np.arange(0,2), p=[1-prob_night, prob_night]) 
+            if self.corona == 1:
+                self.cor_loc_shelter = True       
         if self.corona == 1:
             self.INF = 0
             self.EXP = 1
             self.SUS = 0
-       
+
     def recovery(self):
         if self.EXP == 1:
             self.incub_time -= 1
@@ -368,7 +348,6 @@ class LivAgent(Agent):
             if self.incub_time == 0:
                 self.EXP = 0
                 self.INF = 1
-        #always chance to recover, even without knowing you were sick in the first place
             if self.REC == 1 and self.incub_time == 0:
                 self.INF = 0
                 self.EXP = 0
@@ -402,10 +381,8 @@ class LivAgent(Agent):
         
     def buy_facemask(self):
         if self.model.protection == 1 and self.facemask == 0 and self.get_address().get_livelihood() > 0:
-            #print(self.get_address().get_livelihood())
             self.get_address().increase_livelihood(self.decrease_liv_mask)
             self.facemask = 1
-            #print("I, ", self.unique_id, ' have bought a facemask, now livelihood is: ', self.get_address().get_livelihood())
     
     def retrieve_data(self):
         return [self.model.schedule.time, self.type, self.age, self.affected, self.need_help]
@@ -417,7 +394,6 @@ class LivAgent(Agent):
     
     def step_night(self):
         self.go_home()
-        #quarantine_time 0 means out of quarantine, or never been there
         #corona bit
         if self.model.corona_switch == True:
             if self.quarantine == 0 and self.testing == 1 and self.INF == 1: #if not quarantining, check if you need to quarantine
@@ -425,14 +401,11 @@ class LivAgent(Agent):
                 if self.quarantine == 1:
                     self.to_quarantine()
                 else:
-                    #if you are not quarantining, you won't do it at all.
                     self.awareness = 0
             if self.quarantine_time > 0:
                 self.quarantine_time -= 1
                 if self.quarantine_time == 0 and self.INF == 1:
-                    #after the quarantine time, even if still sick, will go out again?
-                    self.get_better()
-                    
+                    self.get_better()          
         if self.in_shelter == 1:
             self.shelter_time += 1
             self.get_address().increase_livelihood(1) #get food from help organizations during shelter stay
@@ -440,8 +413,7 @@ class LivAgent(Agent):
                 self.shelter_time =+ 1
                 self.in_shelter = 0
                 self.affected = 0
-                self.go_home()
-                
+                self.go_home()        
         self.change_exposed_status()        
         
     def step_aid(self):

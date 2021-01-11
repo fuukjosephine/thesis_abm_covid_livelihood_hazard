@@ -16,7 +16,7 @@ import numpy as np
 initial_live = round(random.uniform(1,10)) #initial livelihood
 check = 0
 num_aidworkers = 0
-num_agents = 1000 + num_aidworkers #population size
+num_agents = 100 + num_aidworkers #population size
 E0 = 10 #initial number of exposed people
 A0 = 0
 
@@ -61,13 +61,13 @@ min_cit_liv_closed = 1
 
 livelihood_switch = True
 hazard_switch = True
-num_shelters = 9
+num_shelters = 1
 
 
 decrease_liv_aid = -1.0
 decrease_liv_mask = -0.5
 shelter_time = random.randint(3,30) #number of days people have to evacuate before they are to return home
-shelter_frac = 0.05
+shelter_frac = 1
 
 reset_time = 10 #after 10 days without corona, exposure is reset
 isolation_duration = 14 #need 14 days in isolation when getting corona
@@ -96,34 +96,17 @@ model = LivModel_SIR.LivModel_SIR(width = 50, height = 50,seed = seed1, shelter_
 exposure = []
 
 begin_time = datetime.datetime.now()
-#the model runs for three steps (e.g. three days)
+
 for i in range(40):
     model.step()
     
 model_df = model.datacollector.get_model_vars_dataframe()
-# =============================================================================
-# agent_df = model.datacollector.get_agent_vars_dataframe()
-# agent_df = agent_df.reset_index()
-# =============================================================================
-
-#agentsssss = model.df.to_csv("agents_17sept.csv")
-
-model_df.to_csv("df_12nov_5000.csv")
-# =============================================================================
-# agent_df.to_csv("agent_df.csv")
-# =============================================================================
-
             
 run_time = datetime.datetime.now() - begin_time
 print("the run time was: ", run_time)
 
-# =============================================================================
-# print("size of agent df is: ", agent_df.size)
-# =============================================================================
 print("size of model df is: ", model_df.size)
 
 model_df.plot()
 model_df.Avg_livelihood.plot()
-# =============================================================================
-# agent_df.plot()
-# =============================================================================
+
