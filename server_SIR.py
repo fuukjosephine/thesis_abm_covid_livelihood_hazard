@@ -19,7 +19,7 @@ import math
 import random
 
 #steering board
-initial_live = round(random.uniform(1,10)) #initial livelihood
+initial_live = 3 #round(random.uniform(1,10)) #initial livelihood
 check = 0
 num_aidworkers = 0
 num_agents = 1000 + num_aidworkers #population size
@@ -69,12 +69,9 @@ min_cit_liv_closed = 1
 decrease_liv_aid = -1.0
 decrease_liv_mask = -0.5
 shelter_time = random.randint(3,30) #number of days people have to evacuate before they are to return home
-shelter_frac = 0.05
+shelter_frac = 0.1
 
 reset_time = 10 #after 10 days without corona, exposure is reset
-isolation_duration = 14 #need 14 days in isolation when getting corona
-
-reset_time = 10
 isolation_duration = 14 #need 14 days in isolation when getting corona
 
 SICK_COLOR = "yellow"
@@ -388,9 +385,27 @@ lockdown_bar = BarChartModule(
     ]
 )
 
+
+infection_bar = PieChartModule(
+    [
+         {"Label": "shelter_infs", "Color": "lightgreen"},
+         {"Label": "market_infs", "Color": "green"},
+         {"Label": "household_infs", "Color": "lightblue"},
+    ]
+)
+
+chart_element_market_infs = ChartModule(
+    [
+     {"Label": "shelter_infs", "Color": LOCKDOWN_COLOR}
+     ]
+    )
+
+
 server = ModularServer(
     LivModel_SIR,
     [grid, chart_element_pop,
+     chart_element_market_infs,
+     infection_bar,
      chart_element_awareness,
      chart_element_kpis, 
      chart_quarantine,
